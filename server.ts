@@ -72,19 +72,26 @@ app.get('/', (req, res) => {
 
 // Webhook verification
 app.get('/webhook', (req, res) => {
+    // ADDED FOR DEBUGGING: Log the entire request query from Meta.
+    console.log('Received webhook verification request with query:', req.query);
+
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
     if (mode && token) {
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-            console.log('WEBHOOK_VERIFIED');
+            console.log('SUCCESS: Webhook verified successfully!');
             res.status(200).send(challenge);
         } else {
-            console.warn(`Webhook verification failed. Mode: ${mode}, Token: ${token}, Expected Token: ${VERIFY_TOKEN}`);
+            // This log is crucial. It will show you the mismatch.
+            console.warn(`FAILURE: Webhook verification failed. Tokens do not match.`);
+            console.warn(`- Received Token: "${token}"`);
+            console.warn(`- Expected Token: "${VERIFY_TOKEN}"`);
             res.sendStatus(403);
         }
     } else {
+        console.warn('FAILURE: Webhook verification failed because "hub.mode" or "hub.verify_token" was not present in the request.');
         res.sendStatus(400);
     }
 });
@@ -223,7 +230,7 @@ app.post('/broadcast-message', async (req, res) => {
 // --- AI Endpoints ---
 
 // FIX: Updated function to use process.env.API_KEY as per the Gemini API guidelines.
-const getAiClient = () => {
+const getAiClient = ()_ => {
     if (!process.env.API_KEY) {
         return null;
     }
