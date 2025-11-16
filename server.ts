@@ -10,9 +10,10 @@ import { GoogleGenAI, Type, Content as GeminiContent } from '@google/genai';
 dotenv.config();
 
 const app = express();
-// FIX: Split middleware registration into separate calls to resolve a TypeScript overload issue.
+// Split middleware registration into separate calls to resolve potential TypeScript overload issues.
 app.use(cors());
-app.use(express.json());
+// FIX: Explicitly provide path to resolve Express middleware type overload issue.
+app.use('/', express.json());
 
 const PORT = process.env.PORT || 3000;
 
@@ -66,19 +67,26 @@ app.get('/health', (req, res) => {
 
 // Webhook verification (now on root path '/')
 app.get('/', (req, res) => {
-    console.log('Received webhook verification request with query:', req.query);
+    console.log('Received GET request on root path. Query:', req.query);
 
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-        console.log('SUCCESS: Webhook verified successfully!');
-        res.status(200).send(challenge);
+    // Check if this is a valid webhook verification request from Meta
+    if (mode && token) {
+        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+            console.log('SUCCESS: Webhook verified successfully!');
+            res.status(200).send(challenge);
+        } else {
+            console.warn(`FAILURE: Webhook verification failed. Token or mode mismatch.`);
+            console.warn(`- Received Token: "${token}"`);
+            console.warn(`- Received Mode: "${mode}"`);
+            res.sendStatus(403);
+        }
     } else {
-        console.warn(`FAILURE: Webhook verification failed.`);
-        console.warn(`- Received Token: "${token}" | Expected Token: "${VERIFY_TOKEN}"`);
-        console.warn(`- Received Mode: "${mode}"`);
+        // This handles other requests to the root, like Render's health check before the path is updated
+        console.log('Request to root path is not a valid webhook verification. Sending 403.');
         res.sendStatus(403);
     }
 });
@@ -273,7 +281,6 @@ You are responding to the latest message in the following conversation. Use the 
             }
         });
         
-        // FIX: Provide a fallback to prevent crashes if response.text is undefined.
         res.status(200).json({ response: response.text || "" });
     } catch (error) {
         console.error("Error generating AI response:", error);
@@ -324,7 +331,6 @@ app.post('/generate-admin-suggestions', async (req, res) => {
             }
         });
         
-        // FIX: Provide a fallback to prevent crashes if response.text is undefined.
         const jsonText = (response.text || '{}').trim();
         const parsedResponse = JSON.parse(jsonText);
         const suggestions = parsedResponse.suggestions || [];
