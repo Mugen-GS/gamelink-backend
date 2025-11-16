@@ -282,7 +282,7 @@ You are responding to the latest message in the following conversation. Use the 
             }
         });
 
-        res.status(200).json({ response: response.text });
+        res.status(200).json({ response: response.text ?? '' });
     } catch (error) {
         console.error("Error generating AI response:", error);
         res.status(500).json({ error: "Failed to generate AI response." });
@@ -333,7 +333,7 @@ app.post('/generate-admin-suggestions', async (req, res) => {
             }
         });
         
-        const jsonText = response.text.trim();
+        const jsonText = (response.text ?? '').trim();
         const parsedResponse = JSON.parse(jsonText);
         const suggestions = parsedResponse.suggestions || [];
         res.status(200).json({ suggestions });
