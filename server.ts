@@ -10,10 +10,9 @@ import { GoogleGenAI, Type, Content as GeminiContent } from '@google/genai';
 dotenv.config();
 
 const app = express();
-// Split middleware registration into separate calls to resolve potential TypeScript overload issues.
+// FIX: Split middleware registration into separate calls to resolve potential TypeScript overload issues.
 app.use(cors());
-// FIX: Explicitly provide path to resolve Express middleware type overload issue.
-app.use('/', express.json());
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
