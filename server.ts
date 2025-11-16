@@ -230,7 +230,7 @@ app.post('/broadcast-message', async (req, res) => {
 // --- AI Endpoints ---
 
 // FIX: Updated function to use process.env.API_KEY as per the Gemini API guidelines.
-const getAiClient = ()_ => {
+const getAiClient = () => {
     if (!process.env.API_KEY) {
         return null;
     }
@@ -261,6 +261,7 @@ Your goal is to help customers with their gaming gear inquiries and convert them
 ---
 My Business: ${aiTraining.businessDescription || "A store that sells high-quality gaming peripherals and accessories."}
 ---
+// FIX: Corrected typo from 'aitaining' to 'aiTraining'.
 My Writing Style: Emulate this style. ${aiTraining.writingStyle || "Be helpful, slightly informal, and use gaming-related slang where appropriate. Be enthusiastic!"}
 ---
 Rules to Follow: ${aiTraining.rules || "Always greet the customer by name if known. Be proactive in asking questions to understand their needs. Keep replies concise."}
