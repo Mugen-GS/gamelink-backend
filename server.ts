@@ -10,9 +10,8 @@ import { GoogleGenAI, Type, Content as GeminiContent } from '@google/genai';
 dotenv.config();
 
 const app = express();
-// Fix: Split middleware registration into separate calls to resolve TypeScript overload issue.
-app.use(cors());
-app.use(express.json());
+// FIX: Combined middleware registration into a single call to resolve a TypeScript overload issue.
+app.use(cors(), express.json());
 
 const PORT = process.env.PORT || 3000;
 
@@ -272,8 +271,9 @@ You are responding to the latest message in the following conversation. Use the 
                 systemInstruction: systemInstruction,
             }
         });
-
-        res.status(200).json({ response: response.text ?? '' });
+        
+        // FIX: Use response.text directly as per Gemini API guidelines.
+        res.status(200).json({ response: response.text });
     } catch (error) {
         console.error("Error generating AI response:", error);
         res.status(500).json({ error: "Failed to generate AI response." });
@@ -323,7 +323,8 @@ app.post('/generate-admin-suggestions', async (req, res) => {
             }
         });
         
-        const jsonText = (response.text ?? '').trim();
+        // FIX: Use response.text directly as per Gemini API guidelines.
+        const jsonText = response.text.trim();
         const parsedResponse = JSON.parse(jsonText);
         const suggestions = parsedResponse.suggestions || [];
         res.status(200).json({ suggestions });
