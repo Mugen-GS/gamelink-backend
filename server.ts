@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
@@ -6,25 +5,21 @@ import { WebSocketServer, WebSocket } from 'ws';
 import dotenv from 'dotenv';
 import axios from 'axios';
 import { Sender, Message, Contact, Settings } from './types'; // Assuming types are shared
-// FIX: Aliased `Content` to `GeminiContent` to prevent potential type name collisions that can cause obscure compilation errors.
 import { GoogleGenAI, Type, Content as GeminiContent } from '@google/genai';
 
 dotenv.config();
 
 const app = express();
-// FIX: Combined cors() and express.json() into a single app.use() call to resolve a TypeScript overload ambiguity with express.json().
-app.use(cors(), express.json());
+// Fix: Split middleware registration into separate calls to resolve TypeScript overload issue.
+app.use(cors());
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Use 'const' as credentials are now immutable, loaded from environment variables.
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "";
-const WHATSAPP_TOKEN = process.env.ACCESS_TOKEN || ""; // Use ACCESS_TOKEN from env
+const WHATSAPP_TOKEN = process.env.ACCESS_TOKEN || "";
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "";
-// FIX: Removed GEMINI_API_KEY to adhere to the guideline of using process.env.API_KEY directly.
 
-// In a real app, this data would come from a database.
-// This map must be consistent with the frontend's MOCK_CONTACTS.
 const contactPhoneMap: { [key: string]: string } = {
     '1': '+15551234567',
     '2': '+15559876543',
@@ -65,40 +60,33 @@ const broadcast = (message: object) => {
 // --- ROUTES ---
 
 // Health check endpoint
-app.get('/', (req, res) => {
+app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'GameLink AI Backend is running.' });
 });
 
-
-// Webhook verification
-app.get('/webhook', (req, res) => {
-    // ADDED FOR DEBUGGING: Log the entire request query from Meta.
+// Webhook verification (now on root path '/')
+app.get('/', (req, res) => {
     console.log('Received webhook verification request with query:', req.query);
 
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    if (mode && token) {
-        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-            console.log('SUCCESS: Webhook verified successfully!');
-            res.status(200).send(challenge);
-        } else {
-            // This log is crucial. It will show you the mismatch.
-            console.warn(`FAILURE: Webhook verification failed. Tokens do not match.`);
-            console.warn(`- Received Token: "${token}"`);
-            console.warn(`- Expected Token: "${VERIFY_TOKEN}"`);
-            res.sendStatus(403);
-        }
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+        console.log('SUCCESS: Webhook verified successfully!');
+        res.status(200).send(challenge);
     } else {
-        console.warn('FAILURE: Webhook verification failed because "hub.mode" or "hub.verify_token" was not present in the request.');
-        res.sendStatus(400);
+        console.warn(`FAILURE: Webhook verification failed.`);
+        console.warn(`- Received Token: "${token}" | Expected Token: "${VERIFY_TOKEN}"`);
+        console.warn(`- Received Mode: "${mode}"`);
+        res.sendStatus(403);
     }
 });
 
-// Receiving messages from WhatsApp
-app.post('/webhook', (req, res) => {
+// Receiving messages from WhatsApp (now on root path '/')
+app.post('/', (req, res) => {
     const body = req.body;
+    console.log(JSON.stringify(req.body, null, 2));
 
     if (body.object === 'whatsapp_business_account') {
         body.entry?.forEach((entry: any) => {
@@ -120,7 +108,6 @@ app.post('/webhook', (req, res) => {
                             sender: Sender.User
                         };
                         
-                        // Broadcast to frontend clients
                         broadcast({ type: 'newMessage', payload: { contactId, message: incomingMessage } });
                     } else {
                         console.warn(`Received message from an unknown number: ${from}. No contactId found.`);
@@ -228,8 +215,6 @@ app.post('/broadcast-message', async (req, res) => {
 });
 
 // --- AI Endpoints ---
-
-// FIX: Updated function to use process.env.API_KEY as per the Gemini API guidelines.
 const getAiClient = () => {
     if (!process.env.API_KEY) {
         return null;
@@ -261,7 +246,6 @@ Your goal is to help customers with their gaming gear inquiries and convert them
 ---
 My Business: ${aiTraining.businessDescription || "A store that sells high-quality gaming peripherals and accessories."}
 ---
-// FIX: Corrected typo from 'aitaining' to 'aiTraining'.
 My Writing Style: Emulate this style. ${aiTraining.writingStyle || "Be helpful, slightly informal, and use gaming-related slang where appropriate. Be enthusiastic!"}
 ---
 Rules to Follow: ${aiTraining.rules || "Always greet the customer by name if known. Be proactive in asking questions to understand their needs. Keep replies concise."}
@@ -269,7 +253,6 @@ Rules to Follow: ${aiTraining.rules || "Always greet the customer by name if kno
 ${contactDetails}
 You are responding to the latest message in the following conversation. Use the customer details provided to personalize your response.`;
 
-    // FIX: Using aliased `GeminiContent` type.
     const contents: GeminiContent[] = chatHistory
       .filter(m => m.sender === Sender.User || m.sender === Sender.AI)
       .map(m => ({
@@ -307,7 +290,6 @@ app.post('/generate-admin-suggestions', async (req, res) => {
     
     const systemInstruction = `You are an expert sales assistant for GameLink. Your goal is to help the admin quickly respond to customer inquiries. Based on the entire conversation history provided, generate exactly 3 concise, helpful, and distinct reply suggestions for the admin. The suggestions should be things the admin can say next to move the conversation forward. Keep each suggestion under 15 words.`;
 
-    // FIX: Using aliased `GeminiContent` type.
     const contents: GeminiContent[] = chatHistory
         .filter(m => m.sender === Sender.User || m.sender === Sender.AI)
         .map(m => ({
@@ -354,9 +336,6 @@ app.post('/generate-admin-suggestions', async (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    // A little hack to make sure contactPhoneMap is populated for new contacts added on the frontend
-    // In a real app with a DB, this wouldn't be needed.
     const contactId = `contact-${Date.now()}`;
     contactPhoneMap[contactId] = `+1555000${Math.floor(Math.random() * 10000)}`;
-
 });
