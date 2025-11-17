@@ -84,9 +84,10 @@ app.get('/', (req, res) => {
             res.sendStatus(403);
         }
     } else {
-        // This handles other requests to the root, like Render's health check before the path is updated
-        console.log('Request to root path is not a valid webhook verification. Sending 403.');
-        res.sendStatus(403);
+        // This handles other requests to the root, like Render's health check.
+        // Respond with a 200 OK to indicate the server is live, but not a webhook verification.
+        console.log('Request to root is not a webhook verification. Treating as a health check. Responding 200 OK.');
+        res.status(200).send('Server is live. This endpoint is for WhatsApp webhook verification.');
     }
 });
 
